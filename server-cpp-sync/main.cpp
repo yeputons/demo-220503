@@ -47,7 +47,7 @@ void process_client(SQLite::Database &db, tcp::socket s) {
         return std::cout << "[" << client_name.str() << "] ";
     };
 
-    log() << "connected" << std::endl;
+    // log() << "connected" << std::endl;
     beast::flat_buffer buffer;
     beast::error_code err;
 
@@ -95,7 +95,7 @@ void process_client(SQLite::Database &db, tcp::socket s) {
                 break;
             }
 
-            log() << "successful request" << std::endl;
+            // log() << "successful request" << std::endl;
             http::response<http::string_body> response(http::status::ok,
                                                        req.version());
             response.set(http::field::content_type, "application/json");
