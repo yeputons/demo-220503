@@ -14,6 +14,11 @@ if (WIN32 AND NOT MSVC AND NOT BORLAND)
     # see BOOST_ASIO_NO_DEFAULT_LINKED_LIBS.
     set(NETWORKING_LIBS "ws2_32")
 endif ()
+
+if (WIN32 AND NOT MSVC)
+   set(SQLITECPP_USE_STACK_PROTECTION OFF)
+endif ()
+set(SQLITECPP_RUN_CPPLINT OFF)
 add_subdirectory(vendor/SQLiteCpp)
 
 # Do not specify /O2 because there are Debug/Release modes.
