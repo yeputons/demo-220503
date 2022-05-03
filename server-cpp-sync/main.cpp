@@ -51,69 +51,74 @@ void process_client(SQLite::Database &db, tcp::socket s) {
     beast::flat_buffer buffer;
     beast::error_code err;
 
-    for (;;) {
-        http::request<http::string_body> req;  // TODO: <void>?
-        http::read(s, buffer, req, err);
+    try {
+        for (;;) {
+            http::request<http::string_body> req;  // TODO: <void>?
+            http::read(s, buffer, req, err);
 
-        if (err == http::error::end_of_stream) {
-            break;
-        }
-        if (err) {
-            log() << "request read error: " << err << std::endl;
-            break;
-        }
+            if (err == http::error::end_of_stream) {
+                break;
+            }
+            if (err) {
+                log() << "request read error: " << err << std::endl;
+                break;
+            }
 
-        if (req.method() == http::verb::put && req.target() == "/messages") {
-            auto new_message = json::parse(req.body()).as_object();
-            std::int64_t chat_id = new_message["chat_id"].as_int64();
-            std::int64_t user_id = new_message["user_id"].as_int64();
-            json::string &message_body = new_message["body"].as_string();
-            SQLite::Statement query(
-                db,
-                "INSERT INTO Message "
-                "(chat_id, user_id, body) VALUES (?, ?, ?)");
-            query.bind(1, chat_id);
-            query.bind(2, user_id);
-            query.bind(3, message_body.data(), message_body.size());
-            int added = query.exec();
-            log() << "Inserted messages: " << added << std::endl;
-            break;
-        }
+            if (req.method() == http::verb::put &&
+                req.target() == "/messages") {
+                auto new_message = json::parse(req.body()).as_object();
+                std::int64_t chat_id = new_message["chat_id"].as_int64();
+                std::int64_t user_id = new_message["user_id"].as_int64();
+                json::string &message_body = new_message["body"].as_string();
+                SQLite::Statement query(
+                    db,
+                    "INSERT INTO Message "
+                    "(chat_id, user_id, body) VALUES (?, ?, ?)");
+                query.bind(1, chat_id);
+                query.bind(2, user_id);
+                query.bind(3, message_body.data(), message_body.size());
+                int added = query.exec();
+                log() << "Inserted messages: " << added << std::endl;
+                break;
+            }
 
-        if (req.method() != http::verb::get) {
-            // TODO: report "bad request" to the client
-            log() << "bad request method, closing connection" << std::endl;
-            break;
-        }
-        if (req.target() != "/chat") {
-            // TODO: report "bad request" to the client
-            // TODO: log injection
-            log() << "unknown target '" << req.target()
-                  << "', closing connection" << std::endl;
-            break;
-        }
+            if (req.method() != http::verb::get) {
+                // TODO: report "bad request" to the client
+                log() << "bad request method, closing connection" << std::endl;
+                break;
+            }
+            if (req.target() != "/chat") {
+                // TODO: report "bad request" to the client
+                // TODO: log injection
+                log() << "unknown target '" << req.target()
+                      << "', closing connection" << std::endl;
+                break;
+            }
 
-        log() << "successful request" << std::endl;
-        http::response<http::string_body> response(http::status::ok,
-                                                   req.version());
-        response.set(http::field::content_type, "application/json");
-        response.keep_alive(req.keep_alive());
+            log() << "successful request" << std::endl;
+            http::response<http::string_body> response(http::status::ok,
+                                                       req.version());
+            response.set(http::field::content_type, "application/json");
+            response.keep_alive(req.keep_alive());
 
-        json::object obj;
-        static int counter = 1;
-        obj["body"] = "Hello World";
-        obj["counter"] = counter;
-        counter++;
-        response.body() = json::serialize(obj);
-        response.prepare_payload();
-        http::write(s, response, err);
-        if (err) {
-            log() << "write error" << std::endl;
-            break;
+            json::object obj;
+            static int counter = 1;
+            obj["body"] = "Hello World";
+            obj["counter"] = counter;
+            counter++;
+            response.body() = json::serialize(obj);
+            response.prepare_payload();
+            http::write(s, response, err);
+            if (err) {
+                log() << "write error" << std::endl;
+                break;
+            }
+            if (response.need_eof()) {
+                break;
+            }
         }
-        if (response.need_eof()) {
-            break;
-        }
+    } catch (std::exception &e) {
+        log() << "exception caught: " << e.what() << std::endl;
     }
 
     s.shutdown(tcp::socket::shutdown_send, err);
@@ -133,7 +138,8 @@ int main() {
         std::cout << "Listening at " << acceptor.local_endpoint() << std::endl;
 
         for (;;) {
-            std::thread(process_client, std::ref(db), acceptor.accept()).detach();
+            std::thread(process_client, std::ref(db), acceptor.accept())
+                .detach();
         }
     } catch (std::exception &e) {
         std::cerr << "Caught exception: " << e.what() << std::endl;
