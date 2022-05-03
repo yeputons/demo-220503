@@ -2,6 +2,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <iostream>
+#include <string>
 
 void create_tables(SQLite::Database &db) {
     db.exec(R"(
@@ -72,9 +73,25 @@ void process_client(tcp::socket s) {
             break;
         }
 
-        // TODO: continue
         log() << "successful request" << std::endl;
-        break;
+        http::response<http::string_body> response(
+            http::status::ok,
+            req.version()
+            );
+        response.set(http::field::content_type, "text/html");
+        response.keep_alive(req.keep_alive());
+        static int counter = 1;
+        response.body() = "Hello World to the chat! " + std::to_string(counter);
+        counter++;
+        response.prepare_payload();
+        http::write(s, response, err);
+        if (err) {
+            log() << "write error" << std::endl;
+            break;
+        }
+        if (response.need_eof()) {
+            break;
+        }
     }
 
     s.shutdown(tcp::socket::shutdown_send, err);
