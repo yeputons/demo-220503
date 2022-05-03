@@ -1,5 +1,5 @@
-#include <boost/asio.hpp>
 #include <SQLiteCpp/SQLiteCpp.h>
+#include <boost/asio.hpp>
 
 int main() {
 }
