@@ -74,10 +74,8 @@ void process_client(tcp::socket s) {
         }
 
         log() << "successful request" << std::endl;
-        http::response<http::string_body> response(
-            http::status::ok,
-            req.version()
-            );
+        http::response<http::string_body> response(http::status::ok,
+                                                   req.version());
         response.set(http::field::content_type, "text/html");
         response.keep_alive(req.keep_alive());
         static int counter = 1;
