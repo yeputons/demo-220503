@@ -2,6 +2,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/json/src.hpp>
+#include <functional>
 #include <iostream>
 #include <string>
 
@@ -38,7 +39,7 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace json = boost::json;
 
-void process_client(tcp::socket s) {
+void process_client(SQLite::Database &db, tcp::socket s) {
     std::stringstream client_name;
     client_name << s.remote_endpoint() << " --> " << s.local_endpoint();
 
@@ -59,6 +60,23 @@ void process_client(tcp::socket s) {
         }
         if (err) {
             log() << "request read error: " << err << std::endl;
+            break;
+        }
+
+        if (req.method() == http::verb::put && req.target() == "/messages") {
+            auto new_message = json::parse(req.body()).as_object();
+            std::int64_t chat_id = new_message["chat_id"].as_int64();
+            std::int64_t user_id = new_message["user_id"].as_int64();
+            json::string &message_body = new_message["body"].as_string();
+            SQLite::Statement query(
+                db,
+                "INSERT INTO Message "
+                "(chat_id, user_id, body) VALUES (?, ?, ?)");
+            query.bind(1, chat_id);
+            query.bind(2, user_id);
+            query.bind(3, message_body.data(), message_body.size());
+            int added = query.exec();
+            log() << "Inserted messages: " << added << std::endl;
             break;
         }
 
@@ -115,7 +133,7 @@ int main() {
         std::cout << "Listening at " << acceptor.local_endpoint() << std::endl;
 
         for (;;) {
-            std::thread(process_client, acceptor.accept()).detach();
+            std::thread(process_client, std::ref(db), acceptor.accept()).detach();
         }
     } catch (std::exception &e) {
         std::cerr << "Caught exception: " << e.what() << std::endl;
