@@ -1,6 +1,7 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/json/src.hpp>
 #include <iostream>
 #include <string>
 
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS Message (
 using boost::asio::ip::tcp;
 namespace beast = boost::beast;
 namespace http = beast::http;
+namespace json = boost::json;
 
 void process_client(tcp::socket s) {
     std::stringstream client_name;
@@ -76,11 +78,15 @@ void process_client(tcp::socket s) {
         log() << "successful request" << std::endl;
         http::response<http::string_body> response(http::status::ok,
                                                    req.version());
-        response.set(http::field::content_type, "text/html");
+        response.set(http::field::content_type, "application/json");
         response.keep_alive(req.keep_alive());
+
+        json::object obj;
         static int counter = 1;
-        response.body() = "Hello World to the chat! " + std::to_string(counter);
+        obj["body"] = "Hello World";
+        obj["counter"] = counter;
         counter++;
+        response.body() = json::serialize(obj);
         response.prepare_payload();
         http::write(s, response, err);
         if (err) {
