@@ -91,7 +91,7 @@ int main() {
 
         boost::asio::io_context io_context;
         tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), 12397));
-        std::cout << "Listening at " << acceptor.local_endpoint() << "\n";
+        std::cout << "Listening at " << acceptor.local_endpoint() << std::endl;
 
         for (;;) {
             std::thread(process_client, acceptor.accept()).detach();
